@@ -33,11 +33,11 @@
     },
     "platformConfig": {
         "macos": {
-            "bundleId": "com.exeldro.output-delay"
+            "bundleId": "com.exeldro.stream-delay"
         }
     },
-    "name": "output-delay",
-    "displayName": "Output Delay",
+    "name": "stream-delay",
+    "displayName": "Stream Delay",
     "version": "0.0.1",
     "author": "Exeldro",
     "website": "https://exeldro.com",

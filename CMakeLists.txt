@@ -37,7 +37,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE Qt::Core Qt::Widgets FFmpeg::avcod
 target_compile_options(
 ${PROJECT_NAME} PRIVATE $<$<C_COMPILER_ID:Clang,AppleClang>:-Wno-quoted-include-in-framework-header
                                 -Wno-comma>)
-set_target_properties(${PROJECT_NAME} PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+#set_target_properties(${PROJECT_NAME} PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set_target_properties(
 ${PROJECT_NAME}
 PROPERTIES AUTOMOC ON
@@ -48,10 +48,10 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.h.in ${CMAKE_CURRENT_SOURCE_D
 
 target_sources(${PROJECT_NAME} PRIVATE
 	output-delay.c
-	output-delay.cpp
+	stream-delay.cpp
 	encoded-output-source.c
 	output-delay.h
-	output-delay.hpp
+	stream-delay.hpp
 	encoded-output-source.h
 	version.h)
 

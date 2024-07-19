@@ -1,5 +1,5 @@
 
-#include "output-delay.hpp"
+#include "stream-delay.hpp"
 #include "output-delay.h"
 
 #include <QCheckBox>
@@ -19,6 +19,7 @@
 #include "pthread.h"
 #include <util/config-file.h>
 #include <util/threading.h>
+#include <util/darray.h>
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_AUTHOR("Exeldro");
@@ -37,25 +38,21 @@ StreamDelayDock *stream_delay_dock = nullptr;
 
 bool obs_module_load()
 {
-	blog(LOG_INFO, "[Output Delay] loaded version %s", PROJECT_VERSION);
-	const auto main_window =
-		static_cast<QMainWindow *>(obs_frontend_get_main_window());
+	blog(LOG_INFO, "[Stream Delay] loaded version %s", PROJECT_VERSION);
+	const auto main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	obs_frontend_push_ui_translation(obs_module_get_string);
 	stream_delay_dock = new StreamDelayDock(main_window);
 
 	//setObjectName("StreamDelayDock");
 	//setWindowTitle(QString::fromUtf8("StreamDelay"));
 #if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
-	obs_frontend_add_dock_by_id("StreamDelayDock",
-				    obs_module_text("StreamDelay"),
-				    stream_delay_dock);
+	obs_frontend_add_dock_by_id("StreamDelayDock", obs_module_text("StreamDelay"), stream_delay_dock);
 #else
 	const auto d = new QDockWidget(main_window);
 	d->setObjectName(QString::fromUtf8("StreamDelayDock"));
 	d->setWindowTitle(QString::fromUtf8(obs_module_text("StreamDelay")));
 	d->setWidget(stream_delay_dock);
-	d->setFeatures(QDockWidget::DockWidgetMovable |
-		       QDockWidget::DockWidgetFloatable);
+	d->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
 	d->setFloating(true);
 	obs_frontend_add_dock(stream_delay_dock);
 #endif
@@ -102,7 +99,7 @@ void StreamDelayDock::add_encoded_output_source(obs_source_t *source)
 
 void StreamDelayDock::remove_encoded_output_source(obs_source_t *source)
 {
-	da_erase_item(sources, &sources);
+	da_erase_item(sources, &source);
 }
 
 StreamDelayDock::StreamDelayDock(QWidget *parent) : QWidget(parent)
@@ -138,15 +135,13 @@ StreamDelayDock::StreamDelayDock(QWidget *parent) : QWidget(parent)
 
 	row++;
 
-	auto label =
-		new QLabel(QString::fromUtf8(obs_module_text("Replacement")));
+	auto label = new QLabel(QString::fromUtf8(obs_module_text("Replacement")));
 	l->addWidget(label, row, 0);
 
 	replacementDuration = new QLabel(QString::fromUtf8("0 ms"));
 	l->addWidget(replacementDuration, row, 1);
 
-	auto test =
-		new QPushButton(QString::fromUtf8(obs_module_text("Record")));
+	auto test = new QPushButton(QString::fromUtf8(obs_module_text("Record")));
 	connect(test, &QPushButton::clicked, [this] {
 		if (start_record || stop_record)
 			return;
@@ -192,8 +187,7 @@ StreamDelayDock::StreamDelayDock(QWidget *parent) : QWidget(parent)
 	desiredDelay->setMaximum(1000000);
 	l->addWidget(desiredDelay, row, 1);
 
-	desiredButton =
-		new QPushButton(QString::fromUtf8(obs_module_text("Go")));
+	desiredButton = new QPushButton(QString::fromUtf8(obs_module_text("Go")));
 	desiredButton->setEnabled(false);
 	l->addWidget(desiredButton, row, 2);
 	connect(desiredButton, &QPushButton::clicked, [this] {
@@ -216,8 +210,7 @@ StreamDelayDock::StreamDelayDock(QWidget *parent) : QWidget(parent)
 	replaceDuration->setProperty("themeID", "good");
 	l->addWidget(replaceDuration, row, 1);
 
-	replaceButton =
-		new QPushButton(QString::fromUtf8(obs_module_text("Go")));
+	replaceButton = new QPushButton(QString::fromUtf8(obs_module_text("Go")));
 	replaceButton->setEnabled(false);
 	connect(replaceButton, &QPushButton::clicked, [this] {
 		if (replace) {
@@ -248,13 +241,10 @@ void StreamDelayDock::updateReplacementDuration()
 	if (replacement_packets.num) {
 
 		auto duration =
-			replacement_packets.array[replacement_packets.num - 1]
-				.dts_usec -
-			replacement_packets.array[0].dts_usec;
+			replacement_packets.array[replacement_packets.num - 1].dts_usec - replacement_packets.array[0].dts_usec;
 		duration /= 1000;
 		pthread_mutex_unlock(&replacement_mutex);
-		replacementDuration->setText(
-			QString::fromUtf8("%1 ms").arg(duration));
+		replacementDuration->setText(QString::fromUtf8("%1 ms").arg(duration));
 	} else {
 		pthread_mutex_unlock(&replacement_mutex);
 		replacementDuration->setText("0 ms");
@@ -267,8 +257,7 @@ void StreamDelayDock::updateReplaceDuration()
 		if (!replaceDuration->text().isEmpty()) {
 			replaceDuration->setText("");
 		}
-		if (currentDelay->property("themeID").toString() !=
-		    QString("good")) {
+		if (currentDelay->property("themeID").toString() != QString("good")) {
 			currentDelay->setProperty("themeID", "good");
 			currentDelay->style()->unpolish(currentDelay);
 			currentDelay->style()->polish(currentDelay);
@@ -283,13 +272,10 @@ void StreamDelayDock::updateReplaceDuration()
 	pthread_mutex_lock(&replacement_mutex);
 	if (replace_index < replacement_packets.num) {
 
-		auto duration =
-			replacement_packets.array[replace_index].dts_usec -
-			replacement_packets.array[0].dts_usec;
+		auto duration = replacement_packets.array[replace_index].dts_usec - replacement_packets.array[0].dts_usec;
 		duration /= 1000;
 		pthread_mutex_unlock(&replacement_mutex);
-		replaceDuration->setText(
-			QString::fromUtf8("%1 ms").arg(duration));
+		replaceDuration->setText(QString::fromUtf8("%1 ms").arg(duration));
 	} else {
 		pthread_mutex_unlock(&replacement_mutex);
 		replaceDuration->setText("0 ms");
@@ -302,9 +288,7 @@ void StreamDelayDock::updateCurrentDelay()
 	if (interleaved_packets.num) {
 
 		auto duration =
-			interleaved_packets.array[interleaved_packets.num - 1]
-				.dts_usec -
-			interleaved_packets.array[0].dts_usec;
+			interleaved_packets.array[interleaved_packets.num - 1].dts_usec - interleaved_packets.array[0].dts_usec;
 		duration /= 1000;
 		pthread_mutex_unlock(&interleaved_mutex);
 		currentDelay->setText(QString::fromUtf8("%1 ms").arg(duration));
@@ -325,7 +309,7 @@ void StreamDelayDock::disconnect_encoders()
 		stop_decode = false;
 	}
 	pthread_mutex_unlock(&codec_context_mutex);
-	
+
 	pthread_mutex_lock(&interleaved_mutex);
 	if (interleaved_packets.num)
 		discard_to_idx(interleaved_packets.num);
@@ -379,11 +363,9 @@ void StreamDelayDock::insert_interleaved_packet(encoder_packet *packet)
 {
 	size_t idx;
 	for (idx = 0; idx < interleaved_packets.num; idx++) {
-		const struct encoder_packet *cur_packet =
-			interleaved_packets.array + idx;
+		const struct encoder_packet *cur_packet = interleaved_packets.array + idx;
 
-		if (packet->dts_usec == cur_packet->dts_usec &&
-		    packet->type == OBS_ENCODER_VIDEO) {
+		if (packet->dts_usec == cur_packet->dts_usec && packet->type == OBS_ENCODER_VIDEO) {
 			break;
 		}
 		if (packet->dts_usec < cur_packet->dts_usec) {
@@ -419,8 +401,7 @@ void StreamDelayDock::discard_unused_audio_packets(int64_t dts_usec)
 		discard_to_idx(idx);
 }
 
-void StreamDelayDock::encoder_packet_create_instance(
-	struct encoder_packet *dst, const struct encoder_packet *src)
+void StreamDelayDock::encoder_packet_create_instance(struct encoder_packet *dst, const struct encoder_packet *src)
 {
 	*dst = *src;
 	long *p_refs = (long *)bmalloc(src->size + sizeof(long));
@@ -446,8 +427,7 @@ void StreamDelayDock::encoderCallback(void *p, encoder_packet *packet)
 
 	pthread_mutex_lock(&d->interleaved_mutex);
 	/* if first video frame is not a keyframe, discard until received */
-	if (!d->received_video && packet->type == OBS_ENCODER_VIDEO &&
-	    !packet->keyframe) {
+	if (!d->received_video && packet->type == OBS_ENCODER_VIDEO && !packet->keyframe) {
 		d->discard_unused_audio_packets(packet->dts_usec);
 		pthread_mutex_unlock(&d->interleaved_mutex);
 		return;
@@ -537,34 +517,27 @@ enum video_format StreamDelayDock::AVPixelFormatToOBSFormat(int f)
 	return VIDEO_FORMAT_NONE;
 }
 
-enum video_colorspace
-StreamDelayDock::AVColorSpaceToOBSSpace(enum AVColorSpace s,
-					enum AVColorTransferCharacteristic trc,
-					enum AVColorPrimaries color_primaries)
+enum video_colorspace StreamDelayDock::AVColorSpaceToOBSSpace(enum AVColorSpace s, enum AVColorTransferCharacteristic trc,
+							      enum AVColorPrimaries color_primaries)
 {
 	switch (s) {
 	case AVCOL_SPC_BT709:
-		return (trc == AVCOL_TRC_IEC61966_2_1) ? VIDEO_CS_SRGB
-						       : VIDEO_CS_709;
+		return (trc == AVCOL_TRC_IEC61966_2_1) ? VIDEO_CS_SRGB : VIDEO_CS_709;
 	case AVCOL_SPC_FCC:
 	case AVCOL_SPC_BT470BG:
 	case AVCOL_SPC_SMPTE170M:
 	case AVCOL_SPC_SMPTE240M:
 		return VIDEO_CS_601;
 	case AVCOL_SPC_BT2020_NCL:
-		return (trc == AVCOL_TRC_ARIB_STD_B67) ? VIDEO_CS_2100_HLG
-						       : VIDEO_CS_2100_PQ;
+		return (trc == AVCOL_TRC_ARIB_STD_B67) ? VIDEO_CS_2100_HLG : VIDEO_CS_2100_PQ;
 	default:
 		return (color_primaries == AVCOL_PRI_BT2020)
-			       ? ((trc == AVCOL_TRC_ARIB_STD_B67)
-					  ? VIDEO_CS_2100_HLG
-					  : VIDEO_CS_2100_PQ)
+			       ? ((trc == AVCOL_TRC_ARIB_STD_B67) ? VIDEO_CS_2100_HLG : VIDEO_CS_2100_PQ)
 			       : VIDEO_CS_DEFAULT;
 	}
 }
 
-void StreamDelayDock::AVFrameToSourceFrame(struct obs_source_frame *dst,
-					   AVFrame *src, AVRational time_base)
+void StreamDelayDock::AVFrameToSourceFrame(struct obs_source_frame *dst, AVFrame *src, AVRational time_base)
 {
 	memset(dst, 0, sizeof(struct obs_source_frame));
 
@@ -575,16 +548,12 @@ void StreamDelayDock::AVFrameToSourceFrame(struct obs_source_frame *dst,
 
 	enum video_range_type range = AVRangeToOBSRange(src->color_range);
 	enum video_format format = AVPixelFormatToOBSFormat(src->format);
-	enum video_colorspace space = AVColorSpaceToOBSSpace(
-		src->colorspace, src->color_trc, src->color_primaries);
+	enum video_colorspace space = AVColorSpaceToOBSSpace(src->colorspace, src->color_trc, src->color_primaries);
 
 	// ToDo: HDR support (max_luminance)
 	dst->format = format;
 	dst->full_range = range == VIDEO_RANGE_FULL;
-	video_format_get_parameters_for_format(space, range, format,
-					       dst->color_matrix,
-					       dst->color_range_min,
-					       dst->color_range_max);
+	video_format_get_parameters_for_format(space, range, format, dst->color_matrix, dst->color_range_min, dst->color_range_max);
 
 	switch (src->color_trc) {
 	case AVCOL_TRC_BT709:
@@ -644,7 +613,7 @@ void *StreamDelayDock::decode_output(void *data)
 			got_first_keyframe = true;
 
 		if (!got_first_keyframe) {
-			da_pop_front(d->output_video_packets);
+			da_erase(d->output_video_packets, 0);
 			obs_encoder_packet_release(&pkt);
 			continue;
 		}
@@ -662,11 +631,11 @@ void *StreamDelayDock::decode_output(void *data)
 		}
 		if (ret < 0 || ret == AVERROR_EOF) {
 			obs_encoder_packet_release(&pkt);
-			da_pop_front(d->output_video_packets);
+			da_erase(d->output_video_packets, 0);
 			pthread_mutex_unlock(&d->output_video_mutex);
 			continue;
 		}
-		da_pop_front(d->output_video_packets);
+		da_erase(d->output_video_packets, 0);
 		pthread_mutex_unlock(&d->output_video_mutex);
 		while (ret >= 0) {
 			ret = avcodec_receive_frame(d->codec_context, av_frame);
@@ -681,8 +650,7 @@ void *StreamDelayDock::decode_output(void *data)
 			AVFrameToSourceFrame(&frame, av_frame, r);
 
 			for (size_t i = 0; i < d->sources.num; i++) {
-				obs_source_output_video(d->sources.array[i],
-							&frame);
+				obs_source_output_video(d->sources.array[i], &frame);
 			}
 		}
 
@@ -713,28 +681,16 @@ void StreamDelayDock::connect_encoders()
 	if (!enabled->isChecked())
 		return;
 
-	auto t2 = obs_frontend_get_streaming_output();
-	if (t2) {
-		if (t2 != output) {
-			int i = 0;
-		} else {
-			int j = 0;
-		}
-		obs_output_release(t2);
-	}
 	auto venc = obs_output_get_video_encoder(output);
 	if (venc) {
-		auto old = encoder_replace_callback(venc, encoderCallback, this,
-						    output);
+		auto old = encoder_replace_callback(venc, encoderCallback, this, output);
 		if (old) {
-			if (video_encode_callback &&
-			    old != video_encode_callback) {
-				int i = 0;
+			if (video_encode_callback && old != video_encode_callback) {
+				blog(LOG_INFO, "[Stream Delay] video callback changed");
 			}
 			video_encode_callback = old;
 		}
-		enum AVCodecID codec_id =
-			NameToAVCodecID(obs_encoder_get_codec(venc));
+		enum AVCodecID codec_id = NameToAVCodecID(obs_encoder_get_codec(venc));
 		const AVCodec *codec = avcodec_find_decoder(codec_id);
 		if (codec) {
 			pthread_mutex_lock(&codec_context_mutex);
@@ -747,26 +703,20 @@ void StreamDelayDock::connect_encoders()
 					stop_decode = false;
 				}
 				codec_context = avcodec_alloc_context3(codec);
-				codec_context->width =
-					obs_encoder_get_width(venc);
-				codec_context->height =
-					obs_encoder_get_height(venc);
+				codec_context->width = obs_encoder_get_width(venc);
+				codec_context->height = obs_encoder_get_height(venc);
 
-				int ret = avcodec_open2(codec_context, codec,
-							NULL);
+				int ret = avcodec_open2(codec_context, codec, NULL);
 				if (ret) {
 					//log_av_error("avcodec_open2", ret);
 					avcodec_free_context(&codec_context);
 					codec_context = nullptr;
 				} else {
-					pthread_create(&decode_thread, NULL,
-						       decode_output, this);
+					pthread_create(&decode_thread, NULL, decode_output, this);
 				}
 			} else if (codec_context) {
-				codec_context->width =
-					obs_encoder_get_width(venc);
-				codec_context->height =
-					obs_encoder_get_height(venc);
+				codec_context->width = obs_encoder_get_width(venc);
+				codec_context->height = obs_encoder_get_height(venc);
 			}
 			pthread_mutex_unlock(&codec_context_mutex);
 		}
@@ -775,12 +725,10 @@ void StreamDelayDock::connect_encoders()
 		auto aenc = obs_output_get_audio_encoder(output, idx);
 		if (!aenc)
 			continue;
-		auto old = encoder_replace_callback(aenc, encoderCallback, this,
-						    output);
+		auto old = encoder_replace_callback(aenc, encoderCallback, this, output);
 		if (old) {
-			if (audio_encode_callback &&
-			    old != audio_encode_callback) {
-				int i = 0;
+			if (audio_encode_callback && old != audio_encode_callback) {
+				blog(LOG_INFO, "[Stream Delay] audio callback changed");
 			}
 			audio_encode_callback = old;
 		}
@@ -795,9 +743,7 @@ void StreamDelayDock::apply_interleaved_packet_offset(struct encoder_packet *out
 	 * may not currently be at 0 when we get data.  so, we store the
 	 * current dts as offset and subtract that value from the dts/pts
 	 * of the output packet. */
-	offset = (out->type == OBS_ENCODER_VIDEO)
-			 ? video_offset
-			 : audio_offsets[out->track_idx];
+	offset = (out->type == OBS_ENCODER_VIDEO) ? video_offset : audio_offsets[out->track_idx];
 
 	out->dts -= offset;
 	out->pts -= offset;
@@ -846,12 +792,9 @@ bool StreamDelayDock::prune_interleaved_packets()
 #if DEBUG_STARTING_PACKETS == 1
 	blog(LOG_DEBUG, "--------- Pruning! %d ---------", prune_start);
 	for (size_t i = 0; i < output->interleaved_packets.num; i++) {
-		struct encoder_packet *packet =
-			&output->interleaved_packets.array[i];
-		blog(LOG_DEBUG, "packet: %s %d, ts: %lld, pruned = %s",
-		     packet->type == OBS_ENCODER_AUDIO ? "audio" : "video",
-		     (int)packet->track_idx, packet->dts_usec,
-		     (int)i < prune_start ? "true" : "false");
+		struct encoder_packet *packet = &output->interleaved_packets.array[i];
+		blog(LOG_DEBUG, "packet: %s %d, ts: %lld, pruned = %s", packet->type == OBS_ENCODER_AUDIO ? "audio" : "video",
+		     (int)packet->track_idx, packet->dts_usec, (int)i < prune_start ? "true" : "false");
 	}
 #endif
 
@@ -929,16 +872,13 @@ size_t StreamDelayDock::num_audio_mixes()
 	return mix_count;
 }
 
-int StreamDelayDock::find_first_packet_type_idx(enum obs_encoder_type type,
-						size_t audio_idx)
+int StreamDelayDock::find_first_packet_type_idx(enum obs_encoder_type type, size_t audio_idx)
 {
 	for (size_t i = 0; i < interleaved_packets.num; i++) {
-		const struct encoder_packet *packet =
-			&interleaved_packets.array[i];
+		const struct encoder_packet *packet = &interleaved_packets.array[i];
 
 		if (packet->type == type) {
-			if (type == OBS_ENCODER_AUDIO &&
-			    packet->track_idx != audio_idx) {
+			if (type == OBS_ENCODER_AUDIO && packet->track_idx != audio_idx) {
 				continue;
 			}
 
@@ -949,16 +889,13 @@ int StreamDelayDock::find_first_packet_type_idx(enum obs_encoder_type type,
 	return -1;
 }
 
-int StreamDelayDock::find_last_packet_type_idx(enum obs_encoder_type type,
-					       size_t audio_idx)
+int StreamDelayDock::find_last_packet_type_idx(enum obs_encoder_type type, size_t audio_idx)
 {
 	for (size_t i = interleaved_packets.num; i > 0; i--) {
-		const struct encoder_packet *packet =
-			&interleaved_packets.array[i - 1];
+		const struct encoder_packet *packet = &interleaved_packets.array[i - 1];
 
 		if (packet->type == type) {
-			if (type == OBS_ENCODER_AUDIO &&
-			    packet->track_idx != audio_idx) {
+			if (type == OBS_ENCODER_AUDIO && packet->track_idx != audio_idx) {
 				continue;
 			}
 
@@ -972,8 +909,7 @@ int StreamDelayDock::find_last_packet_type_idx(enum obs_encoder_type type,
 size_t StreamDelayDock::get_interleaved_start_idx()
 {
 	int64_t closest_diff = 0x7FFFFFFFFFFFFFFFLL;
-	struct encoder_packet *first_video =
-		find_first_packet_type(OBS_ENCODER_VIDEO, 0);
+	struct encoder_packet *first_video = find_first_packet_type(OBS_ENCODER_VIDEO, 0);
 	size_t video_idx = DARRAY_INVALID;
 	size_t idx = 0;
 
@@ -997,17 +933,13 @@ size_t StreamDelayDock::get_interleaved_start_idx()
 	return video_idx < idx ? video_idx : idx;
 }
 
-struct encoder_packet *
-StreamDelayDock::find_first_packet_type(enum obs_encoder_type type,
-					size_t audio_idx)
+struct encoder_packet *StreamDelayDock::find_first_packet_type(enum obs_encoder_type type, size_t audio_idx)
 {
 	const int idx = find_first_packet_type_idx(type, audio_idx);
 	return (idx != -1) ? &interleaved_packets.array[idx] : nullptr;
 }
 
-struct encoder_packet *
-StreamDelayDock::find_last_packet_type(enum obs_encoder_type type,
-				       size_t audio_idx)
+struct encoder_packet *StreamDelayDock::find_last_packet_type(enum obs_encoder_type type, size_t audio_idx)
 {
 	int idx = find_last_packet_type_idx(type, audio_idx);
 	return (idx != -1) ? &interleaved_packets.array[idx] : NULL;
@@ -1061,9 +993,7 @@ bool StreamDelayDock::initialize_interleaved_packets()
 	return true;
 }
 
-bool StreamDelayDock::get_audio_and_video_packets(struct encoder_packet **video,
-						  struct encoder_packet **audio,
-						  size_t audio_mixes)
+bool StreamDelayDock::get_audio_and_video_packets(struct encoder_packet **video, struct encoder_packet **audio, size_t audio_mixes)
 {
 	*video = find_first_packet_type(OBS_ENCODER_VIDEO, 0);
 	if (!*video)
@@ -1108,21 +1038,16 @@ void StreamDelayDock::send_interleaved()
 		if (!has_higher_opposing_ts(&out))
 			return;
 
-		if (skip_to >= 0 && out.type == OBS_ENCODER_VIDEO &&
-		    out.keyframe) {
+		if (skip_to >= 0 && out.type == OBS_ENCODER_VIDEO && out.keyframe) {
 			size_t next_keyframe = 0;
 			struct encoder_packet nk;
 			for (size_t i = 0; i < interleaved_packets.num; i++) {
-				if (interleaved_packets.array[i].type !=
-					    OBS_ENCODER_VIDEO ||
-				    !out.keyframe)
+				if (interleaved_packets.array[i].type != OBS_ENCODER_VIDEO || !out.keyframe)
 					continue;
 				//todo check if it can find audio frames after
 				bool audio_found = false;
-				for (size_t j = i; j < interleaved_packets.num;
-				     j++) {
-					if (interleaved_packets.array[j].type !=
-					    OBS_ENCODER_VIDEO) {
+				for (size_t j = i; j < interleaved_packets.num; j++) {
+					if (interleaved_packets.array[j].type != OBS_ENCODER_VIDEO) {
 						audio_found = true;
 						break;
 					}
@@ -1130,12 +1055,8 @@ void StreamDelayDock::send_interleaved()
 				if (!audio_found)
 					break;
 
-				auto duration =
-					interleaved_packets
-						.array[interleaved_packets.num -
-						       1]
-						.dts_usec -
-					interleaved_packets.array[i].dts_usec;
+				auto duration = interleaved_packets.array[interleaved_packets.num - 1].dts_usec -
+						interleaved_packets.array[i].dts_usec;
 				if (duration < skip_to) {
 					break;
 				}
@@ -1144,11 +1065,9 @@ void StreamDelayDock::send_interleaved()
 			}
 			if (next_keyframe) {
 				for (size_t i = 0; i < next_keyframe; i++) {
-					obs_encoder_packet_release(
-						&interleaved_packets.array[i]);
+					obs_encoder_packet_release(&interleaved_packets.array[i]);
 				}
-				da_erase_range(interleaved_packets, 0,
-					       next_keyframe);
+				da_erase_range(interleaved_packets, 0, next_keyframe);
 				out = interleaved_packets.array[0];
 				delay_usec = skip_to;
 				skip_to = -1;
@@ -1157,12 +1076,10 @@ void StreamDelayDock::send_interleaved()
 
 		auto last_index = interleaved_packets.num - 1;
 		auto last_type = interleaved_packets.array[last_index].type;
-		while (last_index > 0 &&
-		       interleaved_packets.array[last_index].type == last_type)
+		while (last_index > 0 && interleaved_packets.array[last_index].type == last_type)
 			last_index--;
 
-		auto duration = interleaved_packets.array[last_index].dts_usec -
-				interleaved_packets.array[0].dts_usec;
+		auto duration = interleaved_packets.array[last_index].dts_usec - interleaved_packets.array[0].dts_usec;
 		if (duration < delay_usec && !delaying && delay_to < 0) {
 			return;
 		}
@@ -1172,16 +1089,10 @@ void StreamDelayDock::send_interleaved()
 
 		bool internal_start_replace = false;
 		bool internal_start_delay = false;
-		if ((start_replace || delay_to >= 0) &&
-		    out.type == OBS_ENCODER_VIDEO && out.keyframe) {
+		if ((start_replace || delay_to >= 0) && out.type == OBS_ENCODER_VIDEO && out.keyframe) {
 			replace_index = 0;
 			replace_diff_usec =
-				replacement_packets.num
-					? out.dts_usec -
-						  replacement_packets
-							  .array[replace_index]
-							  .dts_usec
-					: 0;
+				replacement_packets.num ? out.dts_usec - replacement_packets.array[replace_index].dts_usec : 0;
 
 			internal_start_replace = start_replace;
 			if (delay_to >= 0) {
@@ -1192,8 +1103,7 @@ void StreamDelayDock::send_interleaved()
 			start_replace = false;
 		}
 
-		if (start_record && out.type == OBS_ENCODER_VIDEO &&
-		    out.keyframe) {
+		if (start_record && out.type == OBS_ENCODER_VIDEO && out.keyframe) {
 			pthread_mutex_lock(&replacement_mutex);
 			for (size_t i = 0; i < replacement_packets.num; i++) {
 				encoder_packet p = replacement_packets.array[i];
@@ -1205,8 +1115,7 @@ void StreamDelayDock::send_interleaved()
 			recording = true;
 		}
 
-		if (stop_record && out.type == OBS_ENCODER_VIDEO &&
-		    out.keyframe) {
+		if (stop_record && out.type == OBS_ENCODER_VIDEO && out.keyframe) {
 			recording = false;
 			stop_record = false;
 			updateReplacementDuration();
@@ -1219,11 +1128,8 @@ void StreamDelayDock::send_interleaved()
 			pthread_mutex_unlock(&replacement_mutex);
 		}
 
-		if (stop_delay && out.type == OBS_ENCODER_VIDEO &&
-		    out.keyframe) {
-			delay_usec = (last_video_dts + 1 - out.dts) *
-				     out.timebase_num * MICROSECOND_DEN /
-				     out.timebase_den;
+		if (stop_delay && out.type == OBS_ENCODER_VIDEO && out.keyframe) {
+			delay_usec = (last_video_dts + 1 - out.dts) * out.timebase_num * MICROSECOND_DEN / out.timebase_den;
 			delaying = false;
 			stop_delay = false;
 		}
@@ -1235,12 +1141,9 @@ void StreamDelayDock::send_interleaved()
 			da_erase(interleaved_packets, 0);
 		}
 
-		if (stop_replace && out.type == OBS_ENCODER_VIDEO &&
-		    out.keyframe) {
-			int64_t current_delay = (last_video_dts + 1 - out.dts) *
-						out.timebase_num *
-						MICROSECOND_DEN /
-						out.timebase_den;
+		if (stop_replace && out.type == OBS_ENCODER_VIDEO && out.keyframe) {
+			int64_t current_delay =
+				(last_video_dts + 1 - out.dts) * out.timebase_num * MICROSECOND_DEN / out.timebase_den;
 			if (current_delay > delay_usec) {
 				skip_to = delay_usec;
 				delay_usec = current_delay;
@@ -1250,14 +1153,12 @@ void StreamDelayDock::send_interleaved()
 		}
 
 		//this should never happen, can be removed
-		if ((internal_start_replace || internal_start_delay) &&
-		    out.type != OBS_ENCODER_VIDEO) {
+		if ((internal_start_replace || internal_start_delay) && out.type != OBS_ENCODER_VIDEO) {
 			obs_encoder_packet_release(packet_to_release);
 			continue;
 		}
 
-		if (internal_start_replace || internal_start_delay || replace ||
-		    delaying) {
+		if (internal_start_replace || internal_start_delay || replace || delaying) {
 			pthread_mutex_lock(&replacement_mutex);
 			if (replace_index >= replacement_packets.num) {
 				/*if (out.type != OBS_ENCODER_VIDEO) {
@@ -1268,37 +1169,19 @@ void StreamDelayDock::send_interleaved()
 					continue;
 				}*/
 				replace_index = 0;
-				if (internal_start_replace ||
-				    internal_start_delay) {
+				if (internal_start_replace || internal_start_delay) {
 					replace_diff_usec =
-						out.dts_usec + delay_usec -
-						replacement_packets
-							.array[replace_index]
-							.dts_usec;
+						out.dts_usec + delay_usec - replacement_packets.array[replace_index].dts_usec;
 				} else {
-					auto last_index =
-						replacement_packets.num - 1;
-					while (last_index > 0 &&
-					       replacement_packets
-							       .array[last_index]
-							       .type !=
-						       OBS_ENCODER_VIDEO)
+					auto last_index = replacement_packets.num - 1;
+					while (last_index > 0 && replacement_packets.array[last_index].type != OBS_ENCODER_VIDEO)
 						last_index--;
 
-					auto diff = replacement_packets
-							    .array[last_index]
-							    .dts -
-						    replacement_packets.array[0]
-							    .dts +
-						    1;
+					auto diff =
+						replacement_packets.array[last_index].dts - replacement_packets.array[0].dts + 1;
 
-					auto diff_usec =
-						diff *
-						replacement_packets.array[0]
-							.timebase_num *
-						MICROSECOND_DEN /
-						replacement_packets.array[0]
-							.timebase_den;
+					auto diff_usec = diff * replacement_packets.array[0].timebase_num * MICROSECOND_DEN /
+							 replacement_packets.array[0].timebase_den;
 					replace_diff_usec += diff_usec;
 				}
 			}
@@ -1309,11 +1192,9 @@ void StreamDelayDock::send_interleaved()
 			out.sys_dts_usec += replace_diff_usec;
 			out.dts_usec += replace_diff_usec;
 
-			int64_t dp = replace_diff_usec * out.timebase_den /
-				     out.timebase_num;
+			int64_t dp = replace_diff_usec * out.timebase_den / out.timebase_num;
 			auto dts_diff = dp / MICROSECOND_DEN;
-			if (dp - (dts_diff * MICROSECOND_DEN) >
-			    MICROSECOND_DEN / 2) {
+			if (dp - (dts_diff * MICROSECOND_DEN) > MICROSECOND_DEN / 2) {
 				dts_diff++;
 			}
 			out.dts += dts_diff;
@@ -1329,11 +1210,9 @@ void StreamDelayDock::send_interleaved()
 		} else if (delay_usec) {
 			out.sys_dts_usec += delay_usec;
 			out.dts_usec += delay_usec;
-			int64_t dp = delay_usec * out.timebase_den /
-				     out.timebase_num;
+			int64_t dp = delay_usec * out.timebase_den / out.timebase_num;
 			int64_t diff = dp / MICROSECOND_DEN;
-			if (dp - (diff * MICROSECOND_DEN) >
-			    MICROSECOND_DEN / 2) {
+			if (dp - (diff * MICROSECOND_DEN) > MICROSECOND_DEN / 2) {
 				diff++;
 			}
 			out.dts += diff;
@@ -1343,9 +1222,9 @@ void StreamDelayDock::send_interleaved()
 		if (out.type == OBS_ENCODER_VIDEO) {
 
 			if (last_video_dts && /* last_video_dts != out.dts &&*/
-			    /*last_video_dts + 1 != out.dts /* &&*/
+			    /*last_video_dts + 1 != out.dts &&*/
 			    last_video_dts >= out.dts) {
-				int j = 0;
+				blog(LOG_INFO, "[Stream Delay] video dts wrong");
 			}
 			last_video_dts = out.dts;
 
@@ -1361,7 +1240,7 @@ void StreamDelayDock::send_interleaved()
 		} else {
 
 			if (last_audio_dts && last_audio_dts >= out.dts) {
-				int j = 0;
+				blog(LOG_INFO, "[Stream Delay] audio dts wrong");
 			}
 			last_audio_dts = out.dts;
 
@@ -1387,30 +1266,35 @@ bool StreamDelayDock::has_higher_opposing_ts(struct encoder_packet *packet)
 
 void StreamDelayDock::output_start(void *p, calldata_t *calldata)
 {
+	UNUSED_PARAMETER(calldata);
 	auto *d = static_cast<StreamDelayDock *>(p);
 	d->connect_encoders();
 }
 
 void StreamDelayDock::output_starting(void *p, calldata_t *calldata)
 {
+	UNUSED_PARAMETER(calldata);
 	auto *d = static_cast<StreamDelayDock *>(p);
 	d->connect_encoders();
 }
 
 void StreamDelayDock::output_activate(void *p, calldata_t *calldata)
 {
+	UNUSED_PARAMETER(calldata);
 	auto *d = static_cast<StreamDelayDock *>(p);
 	d->connect_encoders();
 }
 
 void StreamDelayDock::output_stop(void *p, calldata_t *calldata)
 {
+	UNUSED_PARAMETER(calldata);
 	auto *d = static_cast<StreamDelayDock *>(p);
 	d->disconnect_encoders();
 }
 
 void StreamDelayDock::output_deactivate(void *p, calldata_t *calldata)
 {
+	UNUSED_PARAMETER(calldata);
 	auto *d = static_cast<StreamDelayDock *>(p);
 	d->disconnect_encoders();
 }
@@ -1427,33 +1311,21 @@ void StreamDelayDock::frontend_event(enum obs_frontend_event event, void *p)
 		if (o != d->output) {
 			if (d->output) {
 				d->disconnect_encoders();
-				auto sh = obs_output_get_signal_handler(
-					d->output);
-				signal_handler_disconnect(sh, "start",
-							  output_start, d);
-				signal_handler_disconnect(sh, "starting",
-							  output_starting, d);
-				signal_handler_disconnect(sh, "activate",
-							  output_activate, d);
-				signal_handler_disconnect(sh, "stop",
-							  output_stop, d);
-				signal_handler_disconnect(sh, "deactivate",
-							  output_deactivate, d);
+				auto sh = obs_output_get_signal_handler(d->output);
+				signal_handler_disconnect(sh, "start", output_start, d);
+				signal_handler_disconnect(sh, "starting", output_starting, d);
+				signal_handler_disconnect(sh, "activate", output_activate, d);
+				signal_handler_disconnect(sh, "stop", output_stop, d);
+				signal_handler_disconnect(sh, "deactivate", output_deactivate, d);
 			}
 			d->output = o;
 			if (d->output) {
-				auto sh = obs_output_get_signal_handler(
-					d->output);
-				signal_handler_connect(sh, "start",
-						       output_start, d);
-				signal_handler_connect(sh, "starting",
-						       output_starting, d);
-				signal_handler_connect(sh, "activate",
-						       output_activate, d);
-				signal_handler_connect(sh, "stop", output_stop,
-						       d);
-				signal_handler_connect(sh, "deactivate",
-							  output_deactivate, d);
+				auto sh = obs_output_get_signal_handler(d->output);
+				signal_handler_connect(sh, "start", output_start, d);
+				signal_handler_connect(sh, "starting", output_starting, d);
+				signal_handler_connect(sh, "activate", output_activate, d);
+				signal_handler_connect(sh, "stop", output_stop, d);
+				signal_handler_connect(sh, "deactivate", output_deactivate, d);
 			}
 		}
 		obs_output_release(o);
@@ -1470,7 +1342,7 @@ void StreamDelayDock::frontend_event(enum obs_frontend_event event, void *p)
 		}
 		obs_output_release(o);
 	} else if (event == OBS_FRONTEND_EVENT_STREAMING_STOPPING) {
-		auto *d = static_cast<StreamDelayDock *>(p);
+		//auto *d = static_cast<StreamDelayDock *>(p);
 		//d->disconnect_encoders();
 	} else if (event == OBS_FRONTEND_EVENT_STREAMING_STOPPED) {
 		auto *d = static_cast<StreamDelayDock *>(p);
@@ -1482,10 +1354,8 @@ void StreamDelayDock::frontend_event(enum obs_frontend_event event, void *p)
 			d->disconnect_encoders();
 			auto sh = obs_output_get_signal_handler(d->output);
 			signal_handler_disconnect(sh, "start", output_start, d);
-			signal_handler_disconnect(sh, "starting",
-						  output_starting, d);
-			signal_handler_disconnect(sh, "activate",
-						  output_activate, d);
+			signal_handler_disconnect(sh, "starting", output_starting, d);
+			signal_handler_disconnect(sh, "activate", output_activate, d);
 			signal_handler_disconnect(sh, "stop", output_stop, d);
 		}
 		//d->stop_replace()

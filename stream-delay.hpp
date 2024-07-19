@@ -54,14 +54,11 @@ private:
 
 	DARRAY(obs_source_t *) sources;
 
-	static void AVFrameToSourceFrame(struct obs_source_frame *dst,
-					 AVFrame *src, AVRational time_base);
+	static void AVFrameToSourceFrame(struct obs_source_frame *dst, AVFrame *src, AVRational time_base);
 	static enum video_range_type AVRangeToOBSRange(enum AVColorRange r);
 	static enum video_format AVPixelFormatToOBSFormat(int f);
-	static enum video_colorspace
-	AVColorSpaceToOBSSpace(enum AVColorSpace s,
-			       enum AVColorTransferCharacteristic trc,
-			       enum AVColorPrimaries color_primaries);
+	static enum video_colorspace AVColorSpaceToOBSSpace(enum AVColorSpace s, enum AVColorTransferCharacteristic trc,
+							    enum AVColorPrimaries color_primaries);
 	static enum AVCodecID NameToAVCodecID(const char *str);
 
 	bool received_audio = false;
@@ -91,13 +88,11 @@ private:
 	int64_t last_audio_dts = 0;
 	int64_t last_video_dts = 0;
 
-
 	size_t get_audio_encoder_idx(obs_encoder_t *encoder);
 	void insert_interleaved_packet(encoder_packet *packet);
 	void discard_to_idx(size_t idx);
 	void discard_unused_audio_packets(int64_t dts_usec);
-	void encoder_packet_create_instance(encoder_packet *dst,
-					    const encoder_packet *src);
+	void encoder_packet_create_instance(encoder_packet *dst, const encoder_packet *src);
 	void apply_interleaved_packet_offset(encoder_packet *out);
 	int64_t packet_dts_usec(encoder_packet *packet);
 	void check_received(encoder_packet *out);
@@ -108,20 +103,15 @@ private:
 	int find_first_packet_type_idx(obs_encoder_type type, size_t audio_idx);
 	int find_last_packet_type_idx(obs_encoder_type type, size_t audio_idx);
 	size_t get_interleaved_start_idx();
-	encoder_packet *find_first_packet_type(obs_encoder_type type,
-					       size_t audio_idx);
-	encoder_packet *find_last_packet_type(obs_encoder_type type,
-					      size_t audio_idx);
+	encoder_packet *find_first_packet_type(obs_encoder_type type, size_t audio_idx);
+	encoder_packet *find_last_packet_type(obs_encoder_type type, size_t audio_idx);
 	bool initialize_interleaved_packets();
-	bool get_audio_and_video_packets(encoder_packet **video,
-					 encoder_packet **audio,
-					 size_t audio_mixes);
+	bool get_audio_and_video_packets(encoder_packet **video, encoder_packet **audio, size_t audio_mixes);
 	void resort_interleaved_packets();
 	void send_interleaved();
 	bool has_higher_opposing_ts(encoder_packet *packet);
 	static void encoderCallback(void *p, encoder_packet *packet);
-	static void frontend_event(obs_frontend_event event,
-				   void *private_data);
+	static void frontend_event(obs_frontend_event event, void *private_data);
 	static void output_start(void *p, calldata_t *calldata);
 	static void output_starting(void *p, calldata_t *calldata);
 	static void output_activate(void *p, calldata_t *calldata);
@@ -135,6 +125,7 @@ private slots:
 	void updateReplacementDuration();
 	void updateReplaceDuration();
 	void updateCurrentDelay();
+
 public:
 	StreamDelayDock(QWidget *parent = nullptr);
 	~StreamDelayDock();

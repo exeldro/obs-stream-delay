@@ -23,8 +23,7 @@ const char *output_view_source_name(void *type_data)
 void *output_view_source_create(obs_data_t *settings, obs_source_t *source)
 {
 	UNUSED_PARAMETER(settings);
-	struct output_view_source_info *context =
-		bzalloc(sizeof(struct output_view_source_info));
+	struct output_view_source_info *context = bzalloc(sizeof(struct output_view_source_info));
 	context->source = source;
 
 	add_encoded_output_source(source);
@@ -46,4 +45,3 @@ struct obs_source_info encoded_output_view_source = {
 	.create = output_view_source_create,
 	.destroy = output_view_source_destroy,
 };
-

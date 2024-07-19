@@ -145,11 +145,11 @@ jobs:
           target: macos-universal
           config: ${{ needs.check-event.outputs.config }}
           package: ${{ fromJSON(needs.check-event.outputs.package) }}
-          codesign: ${{ fromJSON(needs.check-event.outputs.codesign) && fromJSON(steps.codesign.outputs.haveCodesignIdent) }}
+          codesign: false
           codesignIdent: ${{ steps.codesign.outputs.codesignIdent }}
           installerIdent: ${{ steps.codesign.outputs.installerIdent }}
           codesignTeam: ${{ steps.codesign.outputs.codesignTeam }}
-          notarize: ${{ fromJSON(needs.check-event.outputs.notarize) && fromJSON(steps.codesign.outputs.haveNotarizationUser) }}
+          notarize: false
           codesignUser: ${{ secrets.APPLE_EMAIL }}
           codesignPass: ${{ secrets.APPLE_PASSWORD }}
 
@@ -270,14 +270,14 @@ jobs:
           config: ${{ needs.check-event.outputs.config }}
 
       - name: Create Code Signing Certificate
-        if: success() && github.event_name != 'pull_request'
+        if: false && github.event_name != 'pull_request'
         run: |
             New-Item -ItemType directory -Path certificate
             Set-Content -Path certificate\certificate.txt -Value '${{ secrets.WINDOWS_CSC_LINK }}'
             certutil -decode certificate\certificate.txt certificate\certificate.pfx
 
       - name: Code Sign 64
-        if: success() && github.event_name != 'pull_request'
+        if: false && github.event_name != 'pull_request'
         run: |
           & 'C:/Program Files (x86)/Windows Kits/10/bin/10.0.20348.0/x64/signtool.exe' sign /f certificate\certificate.pfx /p '${{ secrets.WINDOWS_CSC_PASS }}' /t http://timestamp.comodoca.com/authenticode .\release\${{ needs.check-event.outputs.config }}\obs-plugins\64bit\${{ steps.setup.outputs.pluginName }}.dll
 
@@ -289,7 +289,7 @@ jobs:
           package: ${{ fromJSON(needs.check-event.outputs.package) }}
 
       - name: Code Sign Installer
-        if: success() && github.event_name != 'pull_request'
+        if: false && github.event_name != 'pull_request'
         run: |
           & 'C:/Program Files (x86)/Windows Kits/10/bin/10.0.20348.0/x64/signtool.exe' sign /f certificate\certificate.pfx /p '${{ secrets.WINDOWS_CSC_PASS }}' /t http://timestamp.comodoca.com/authenticode ./release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-Installer.exe
 
